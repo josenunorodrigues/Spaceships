@@ -11,15 +11,28 @@ public class Cube : MonoBehaviour
     public int health = 20;
     private int id;
     private LineRenderer line;
-    public float snapOffset = 0;
-    public int blockWidth = 1;
-    public int blockHeight = 1;
+    public int length = 1;
     public Heart heartParent;
-
+    public float colliderRadius = 3f;
+    Cube north, south, east, west;
     // Start is called before the first frame update
+
+    // Snapping e Rotação
+    // quando o bloco entra no alcance para dar snap, o bloco fica com a mesma rotação do nearestCollider e sofre dos inputs de rotação que a nave também recebe
+    
+    // Detecção de Blocos em redor
+    // collider em cada face para saber qual é o bloco nessa face
+    
+    // Adicionar Blocos
+    // quando se adiciona um bloco à nave, vai-se buscar todos os blocos em redor e ver qual é o bloco que tem o menor caminho ao heart e adicionar mais 1 ao caminho deste bloco. E actualizar todos os blocos em redor cujos caminhos sejam maiores que o seu número mais ou menos 1.
+    
+    // Remover Blocos
+    // ao remover, verificar os blocos em redor e verificar se o caminho é maior. Se for, continuar a verificar os blocos em cadeia. Se houver um bloco cujo caminho seja menor que o próprio, não é removido mais nenhum bloco da cadeia. Se não houver nenhum bloco com caminho menor, todos os blocos da cadeia são removidos.
+
     void Start()
     {
-        GetComponent<Rigidbody2D>().transform.localScale = new Vector3(blockWidth, blockHeight, 1);
+        transform.localScale = new Vector3(length, length, 1);
+
         line = gameObject.GetComponent<LineRenderer>();
         line.enabled = false;
     }
@@ -33,7 +46,7 @@ public class Cube : MonoBehaviour
     {
         // Draw a yellow sphere at the transform's position
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, 3f);
+        Gizmos.DrawWireSphere(transform.position, colliderRadius);
     }
 
     Vector3 offsetValue;
@@ -55,7 +68,7 @@ public class Cube : MonoBehaviour
         gameObjectSreenPoint = Camera.main.WorldToScreenPoint(gameObject.transform.position);
         //Sets the mouse pointers vector3
         mousePreviousLocation = new Vector2(Input.mousePosition.x, Input.mousePosition.y);
-        offsetValue = GetComponent<Rigidbody2D>().transform.position - Camera.main.ScreenToWorldPoint(new Vector2(Input.mousePosition.x, Input.mousePosition.y));
+        offsetValue = transform.position - Camera.main.ScreenToWorldPoint(new Vector2(Input.mousePosition.x, Input.mousePosition.y));
 
     }
 
@@ -69,32 +82,30 @@ public class Cube : MonoBehaviour
             force = mouseCurLocation - mousePreviousLocation;//Changes the force to be applied
             mousePreviousLocation = mouseCurLocation;
 
-            GetComponent<Rigidbody2D>().transform.position = new Vector2((Camera.main.ScreenToWorldPoint(mouseCurLocation) + offsetValue).x, (Camera.main.ScreenToWorldPoint(mouseCurLocation) + offsetValue).y);
+            transform.position = new Vector2((Camera.main.ScreenToWorldPoint(mouseCurLocation) + offsetValue).x, (Camera.main.ScreenToWorldPoint(mouseCurLocation) + offsetValue).y);
             GetComponent<Rigidbody2D>().velocity = force;
-            hitColliders = Physics2D.OverlapCircleAll(GetComponent<Rigidbody2D>().transform.position, 3f);
-            Debug.Log(hitColliders);
+            hitColliders = Physics2D.OverlapCircleAll(transform.position, colliderRadius);
+ 
+            nearestCollider = null;
             if (hitColliders.Length != 1)
             {
-
                 float minSqrDistance = Mathf.Infinity;
 
                 for (int i = 0; i < hitColliders.Length; i++)
                 {
                     if (hitColliders[i].name != name)
                     {
-                        Debug.Log(GetComponent<Rigidbody2D>().transform.position + " " + hitColliders[i].transform.position);
-                        float sqrDistanceToCenter = (GetComponent<Rigidbody2D>().transform.position - hitColliders[i].transform.position).sqrMagnitude;
-                        if (sqrDistanceToCenter < minSqrDistance)
+                        float sqrDistanceToCenter = (transform.position - hitColliders[i].transform.position).sqrMagnitude;
+                        if ((sqrDistanceToCenter < minSqrDistance) && (hitColliders[i].name == "Heart" || getHeartParent(hitColliders[i].GetComponent<Cube>())))
                         {
                             minSqrDistance = sqrDistanceToCenter;
                             nearestCollider = hitColliders[i];
                         }
                     }
                 }
-                //Debug.Log(nearestCollider);
-                try
+                if (nearestCollider)
                 {
-                    Cube heartParent = getHeartParent(nearestCollider.GetComponent<Cube>());
+                    Cube heartParent = getHeartParent(nearestCollider.GetComponent(typeof(Cube)) as Cube);
                     if (heartParent)
                     {
                         this.heartParent = (Heart)heartParent;
@@ -104,25 +115,15 @@ public class Cube : MonoBehaviour
                     }
                     else
                     {
+                        nearestCollider = null;
                         line.enabled = false;
                     }
                 }
-                catch (Exception e)
+                else
                 {
-                    Cube heartParent = getHeartParent(nearestCollider.GetComponent<Heart>());
-                    if (heartParent)
-                    {
-                        this.heartParent = (Heart)heartParent;
-                        line.enabled = true;
-                        line.SetPosition(0, transform.position);
-                        line.SetPosition(1, nearestCollider.transform.position);
-                    }
-                    else
-                    {
-                        line.enabled = false;
-                    }
+                    nearestCollider = null;
+                    line.enabled = false;
                 }
-               
             }
             else
             {
@@ -132,7 +133,8 @@ public class Cube : MonoBehaviour
 
             if (Input.GetKey(rotateKey))
             {
-                Debug.Log(GetComponent<Rigidbody2D>().transform.rotation);
+                transform.Rotate(0, 90, 0);
+                Debug.Log(transform.rotation);
             }
         }
     }
@@ -149,52 +151,61 @@ public class Cube : MonoBehaviour
         if (!transform.parent)
         {
             line.enabled = false;
-
             //Makes sure there isn't a ludicrous speed
             if (GetComponent<Rigidbody2D>().velocity.magnitude > topSpeed)
                 force = GetComponent<Rigidbody2D>().velocity.normalized * topSpeed;
 
             // fix piece to the ship
-            if ((nearestCollider && nearestCollider.name == "Heart") || nearestCollider.transform.parent)
+            if (nearestCollider && (nearestCollider.name == "Heart" || nearestCollider.transform.parent))
             {
+                Debug.Log(nearestCollider.transform.position);
                 transform.SetParent(nearestCollider.transform);
                 Destroy(transform.GetComponent<Rigidbody2D>());
 
                 float xDiff = nearestCollider.transform.position.x - transform.position.x;
                 float yDiff = nearestCollider.transform.position.y - transform.position.y;
                 Debug.Log("x:" + xDiff + " y: " + yDiff + " " + (xDiff > yDiff));
-                //Cube nearCube = GameObject.FindGameObjectWithTag(nearestCollider.name);
                 
                 if (Math.Abs(xDiff) < Math.Abs(yDiff) && yDiff > 0)
                 {
+                    Debug.Log(Mathf.Round(nearestCollider.transform.position.x));
                     //if Down
-                    //heartParent.GetComponent<Rigidbody2D>().transform.right
                     Debug.Log("Down");
-                    GetComponent<Rigidbody2D>().transform.position = new Vector3(nearestCollider.transform.position.x, nearestCollider.transform.position.y - nearestCollider.GetComponent<Cube>().blockHeight, nearestCollider.transform.position.z);
-                    //Debug.Log(nearestCollider.transform.position.x + " " + (nearestCollider.transform.position.y - nearestCollider.GetComponent<Cube>().blockHeight));
+                    transform.position = new Vector3(
+                        nearestCollider.transform.position.x,
+                        nearestCollider.transform.position.y - nearestCollider.GetComponent<Cube>().length,
+                        nearestCollider.transform.position.z
+                    );
                 }
                 else if (Math.Abs(xDiff) > Math.Abs(yDiff) && xDiff > 0)
                 {
                     //if Left
-                    Debug.Log("Up");
-                    GetComponent<Rigidbody2D>().transform.position = new Vector3(nearestCollider.transform.position.x - nearestCollider.GetComponent<Cube>().blockWidth, nearestCollider.transform.position.y, nearestCollider.transform.position.z);
-                    //Debug.Log(nearestCollider.transform.position.x - nearestCollider.GetComponent<Cube>().blockWidth + " " + nearestCollider.transform.position.y);
+                    Debug.Log("Left");
+                    transform.position = new Vector3(
+                        nearestCollider.transform.position.x - nearestCollider.GetComponent<Cube>().length,
+                        nearestCollider.transform.position.y,
+                        nearestCollider.transform.position.z
+                    );
                 }
                 else if (Math.Abs(xDiff) > Math.Abs(yDiff) && xDiff < 0)
                 {
                     //if Right
                     Debug.Log("Right");
-                    GetComponent<Rigidbody2D>().transform.position = new Vector3(nearestCollider.transform.position.x + nearestCollider.GetComponent<Cube>().blockWidth, nearestCollider.transform.position.y, nearestCollider.transform.position.z);
-                    //Debug.Log((nearestCollider.transform.position.x + nearestCollider.GetComponent<Cube>().blockWidth) + " " + nearestCollider.transform.position.y);
-
+                    transform.position = new Vector3(
+                        nearestCollider.transform.position.x + nearestCollider.GetComponent<Cube>().length,
+                        nearestCollider.transform.position.y,
+                        nearestCollider.transform.position.z
+                    );
                 }
                 else if (Math.Abs(xDiff) < Math.Abs(yDiff) && yDiff < 0)
                 {
-                    //if Left
-                    Debug.Log("Left");
-
-                    GetComponent<Rigidbody2D>().transform.position = new Vector3(nearestCollider.transform.position.x, nearestCollider.transform.position.y + nearestCollider.GetComponent<Cube>().blockHeight, nearestCollider.transform.position.z);
-                    //Debug.Log(nearestCollider.transform.position.x + " " + (nearestCollider.transform.position.y + nearestCollider.GetComponent<Cube>().blockHeight));
+                    //if Up
+                    Debug.Log("Up");
+                    transform.position = new Vector3(
+                        nearestCollider.transform.position.x,
+                        nearestCollider.transform.position.y + nearestCollider.GetComponent<Cube>().length,
+                        nearestCollider.transform.position.z
+                    );
                 }
             }
 
