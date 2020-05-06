@@ -4,26 +4,40 @@ using UnityEngine;
 
 public class Heart : Cube
 {
+    public KeyCode rotateShipLeftKey = KeyCode.A;
+    public KeyCode rotateShipRightKey = KeyCode.D;
+    public KeyCode accelerateKey = KeyCode.W;
+    public Rigidbody2D rb;
 
+    private float vertical;
+    private float horizontal;
 
     void Start()
     {
-        
+        heartParent = this;
     }
 
     void Update()
     {
-        if(Input.GetKey(KeyCode.W))
+    }
+
+    private void FixedUpdate()
+    {
+        if (Input.GetKey(accelerateKey))
         {
-            GetComponent<Rigidbody2D>().AddForce(new Vector2(0f, 1f));
+            print(GetComponent<Rigidbody2D>().velocity + " " + transform.forward + " " + vertical + " " + speed);
+
+            vertical = Input.GetAxis("Vertical");
+            rb.AddForce((transform.up * vertical) * speed);
+            //GetComponent<Rigidbody2D>().velocity = (transform.forward * vertical) * speed;
         }
-        else if (Input.GetKey(KeyCode.D))
+        if (Input.GetKey(rotateShipRightKey))
         {
-            GetComponent<Rigidbody2D>().AddForce(new Vector2(1f, 0f));
+            transform.Rotate(new Vector3(0, 0, -5) * Time.fixedDeltaTime * 10, Space.World);
         }
-        else if (Input.GetKey(KeyCode.A))
+        if (Input.GetKey(rotateShipLeftKey))
         {
-            GetComponent<Rigidbody2D>().AddForce(new Vector2(-1f, 0f));
+            transform.Rotate(new Vector3(0, 0, 5) * Time.fixedDeltaTime * 10, Space.World);
         }
     }
 
