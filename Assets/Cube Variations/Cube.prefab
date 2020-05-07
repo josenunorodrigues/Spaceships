@@ -146,9 +146,7 @@ MonoBehaviour:
   speed: 1.5
   tier: 1
   health: 20
-  snapOffset: 0
-  blockWidth: 1
-  blockHeight: 1
+  length: 1
   heartParent: {fileID: 0}
   colliderRadius: 3
   gameObjectSreenPoint: {x: 0, y: 0}
