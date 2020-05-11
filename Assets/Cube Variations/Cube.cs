@@ -158,13 +158,12 @@ public class Cube : MonoBehaviour
             transform.position = new Vector2((Camera.main.ScreenToWorldPoint(mouseCurLocation) + offsetValue).x, (Camera.main.ScreenToWorldPoint(mouseCurLocation) + offsetValue).y);
             GetComponent<Rigidbody2D>().velocity = force;
             hitColliders = Physics2D.OverlapCircleAll(transform.position, colliderRadius, 1 << 8);
-            Debug.Log(hitColliders.Length);
 
             if (hitColliders.Length > 1)
             {
                 float minSqrDistance = Mathf.Infinity;
 
-                bool addedCube = false;
+                GameObject cycleNearestCube = null;
                 for (int i = 0; i < hitColliders.Length; i++)
                 {
                     GameObject cube = hitColliders[i].transform.parent.gameObject;
@@ -173,29 +172,59 @@ public class Cube : MonoBehaviour
                         float sqrDistanceToCenter = (transform.position - cube.transform.position).sqrMagnitude;
                         if ((sqrDistanceToCenter < minSqrDistance) && (cube.name == "Heart" || getHeartParent(cube.GetComponent<Cube>())))
                         {
-                            addedCube = true;
                             minSqrDistance = sqrDistanceToCenter;
-                            if(nearestCube == null)
-                            {
-                                nearestCube = cube;
-                                Vector3 eulerAngles = nearestCube.transform.localEulerAngles;
-                                List<float> angles = new List<float>();
-                                angles.Add(eulerAngles.z);
-                                for (int j = 0; j < 3; j++)
-                                {
-                                    eulerAngles.z = (eulerAngles.z + 90) % 360;
-                                    angles.Add(eulerAngles.z);
-                                }
-                                float closest = angles.Aggregate((x, y) => Math.Abs(x - transform.localEulerAngles.z) < Math.Abs(y - transform.localEulerAngles.z) ? x : y);
-                                transform.localEulerAngles = new Vector3(transform.localEulerAngles.x, transform.localEulerAngles.y, closest);
-                            } else
-                            {
-                                nearestCube = cube;
-                            }
+                            cycleNearestCube = cube;
                         }
                     }
                 }
-                if(!addedCube)
+                if(cycleNearestCube)
+                {
+                    bool addedDifferentCube = false;
+                    if (nearestCube == null)
+                    {
+                        addedDifferentCube = true;
+                        nearestCube = cycleNearestCube;
+                        Vector3 eulerAngles = nearestCube.transform.localEulerAngles;
+                        List<float> angles = new List<float>();
+                        angles.Add(eulerAngles.z);
+                        for (int j = 0; j < 3; j++)
+                        {
+                            eulerAngles.z = (eulerAngles.z + 90) % 360;
+                            angles.Add(eulerAngles.z);
+                        }
+                        float closest = angles.Aggregate((x, y) => Math.Abs(x - transform.localEulerAngles.z) < Math.Abs(y - transform.localEulerAngles.z) ? x : y);
+                        transform.localEulerAngles = new Vector3(transform.localEulerAngles.x, transform.localEulerAngles.y, closest);
+                    }
+                    else if (nearestCube.name != cycleNearestCube.name)
+                    {
+                        addedDifferentCube = true;
+                        nearestCube = cycleNearestCube;
+                    }
+                    if(addedDifferentCube)
+                    {
+                        Gradient gradient = new Gradient();
+                        GradientColorKey[] colorKey = new GradientColorKey[2];
+                        colorKey[0].color = GetComponent<Renderer>().material.GetColor("_Color");
+                        colorKey[0].time = 0.0f;
+                        colorKey[1].color = nearestCube.GetComponent<Renderer>().material.GetColor("_Color");
+                        colorKey[1].time = 1.0f;
+
+                        // Populate the alpha  keys at relative time 0 and 1  (0 and 100%)
+                        GradientAlphaKey[] alphaKey = new GradientAlphaKey[2];
+                        alphaKey[0].alpha = 1.0f;
+                        alphaKey[0].time = 0.0f;
+                        alphaKey[1].alpha = 0.3f;
+                        alphaKey[1].time = 1.0f;
+
+                        gradient.SetKeys(colorKey, alphaKey);
+
+                        //line.GetComponent<Renderer>().material.color = gradient.Evaluate(1);
+                        line.colorGradient = gradient;
+
+                        //line.SetColors(GetComponent<Renderer>().material.GetColor("_Color"), nearestCube.GetComponent<Renderer>().material.GetColor("_Color"));
+                    }
+                }
+                else
                 {
                     nearestCube = null;
                 }
@@ -252,7 +281,6 @@ public class Cube : MonoBehaviour
 
             if (nearestCube && (nearestCube.name == "Heart" || nearestCube.transform.parent))
             {
-                Debug.Log(nearestCube.transform.position);
                 transform.SetParent(nearestCube.transform);
                 Destroy(transform.GetComponent<Rigidbody2D>());
 
