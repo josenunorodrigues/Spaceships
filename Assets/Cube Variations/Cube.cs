@@ -35,9 +35,6 @@ public class Cube : MonoBehaviour
     public float rotationTime;
     // Start is called before the first frame update
 
-    // Snapping e Rotação
-    // quando o bloco entra no alcance para dar snap, o bloco fica com a mesma rotação do nearestCube e sofre dos inputs de rotação que a nave também recebe
-
     // Detecção de Blocos em redor
     // collider em cada face para saber qual é o bloco nessa face
 
@@ -70,7 +67,6 @@ public class Cube : MonoBehaviour
     }
     void OnDrawGizmosSelected()
     {
-        // Draw a yellow sphere at the transform's position
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, colliderRadius);
     }
@@ -208,26 +204,16 @@ public class Cube : MonoBehaviour
                         colorKey[0].time = 0.0f;
                         colorKey[1].color = nearestCube.GetComponent<Renderer>().material.GetColor("_Color");
                         colorKey[1].time = 1.0f;
-
-                        // Populate the alpha  keys at relative time 0 and 1  (0 and 100%)
                         GradientAlphaKey[] alphaKey = new GradientAlphaKey[2];
                         alphaKey[0].alpha = 1.0f;
                         alphaKey[0].time = 0.0f;
                         alphaKey[1].alpha = 0.3f;
                         alphaKey[1].time = 1.0f;
-
                         gradient.SetKeys(colorKey, alphaKey);
-
-                        //line.GetComponent<Renderer>().material.color = gradient.Evaluate(1);
                         line.colorGradient = gradient;
-
-                        //line.SetColors(GetComponent<Renderer>().material.GetColor("_Color"), nearestCube.GetComponent<Renderer>().material.GetColor("_Color"));
                     }
                 }
-                else
-                {
-                    nearestCube = null;
-                }
+                else nearestCube = null;
                 if (nearestCube)
                 {
                     Cube heartParent = getHeartParent(nearestCube.GetComponent(typeof(Cube)) as Cube);
