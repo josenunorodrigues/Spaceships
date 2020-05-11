@@ -1,10 +1,14 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class Cube : MonoBehaviour
 {
+    public KeyCode rotateShipLeftKey = KeyCode.A;
+    public KeyCode rotateShipRightKey = KeyCode.D;
+    public KeyCode accelerateKey = KeyCode.W;
     public KeyCode rotateKey = KeyCode.R;
     public float speed = 1.5f;
     public int tier = 1;
@@ -14,18 +18,32 @@ public class Cube : MonoBehaviour
     public int length = 1;
     public Heart heartParent;
     public float colliderRadius = 3f;
-    Cube north, south, east, west;
+    Cube cubeNorth, cubeEast, cubeSouth, cubeWest;
+    bool socketNorth = true, socketEast = true, socketSouth = true, socketWest = true;
+    public CircleCollider2D colliderNorth, colliderEast, colliderSouth, colliderWest;
+    public Vector2 force;
+    public float topSpeed = 10;
+    Direction ?dirToNearestCollider;
+    enum Direction { North, East, South, West }
+    Vector3 offsetValue;
+    public Vector3 mousePreviousLocation;
+    Collider2D[] hitColliders;
+    public GameObject nearestCube = null;
+    bool rotating = false;
+    float rotationSpeed = 10f;
+    Quaternion targetRotation;
+    public float rotationTime;
     // Start is called before the first frame update
 
     // Snapping e Rotação
-    // quando o bloco entra no alcance para dar snap, o bloco fica com a mesma rotação do nearestCollider e sofre dos inputs de rotação que a nave também recebe
-    
+    // quando o bloco entra no alcance para dar snap, o bloco fica com a mesma rotação do nearestCube e sofre dos inputs de rotação que a nave também recebe
+
     // Detecção de Blocos em redor
     // collider em cada face para saber qual é o bloco nessa face
-    
+
     // Adicionar Blocos
     // quando se adiciona um bloco à nave, vai-se buscar todos os blocos em redor e ver qual é o bloco que tem o menor caminho ao heart e adicionar mais 1 ao caminho deste bloco. E actualizar todos os blocos em redor cujos caminhos sejam maiores que o seu número mais ou menos 1.
-    
+
     // Remover Blocos
     // ao remover, verificar os blocos em redor e verificar se o caminho é maior. Se for, continuar a verificar os blocos em cadeia. Se houver um bloco cujo caminho seja menor que o próprio, não é removido mais nenhum bloco da cadeia. Se não houver nenhum bloco com caminho menor, todos os blocos da cadeia são removidos.
 
@@ -40,7 +58,15 @@ public class Cube : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-
+        if (rotating)
+        {
+            rotationTime += Time.deltaTime * rotationSpeed;
+            transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, rotationTime);
+        }
+        if (rotationTime > 1)
+        {
+            rotating = false;
+        }
     }
     void OnDrawGizmosSelected()
     {
@@ -48,14 +74,46 @@ public class Cube : MonoBehaviour
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, colliderRadius);
     }
-
-    Vector3 offsetValue;
-    public Vector2 gameObjectSreenPoint;
-    public Vector3 mousePreviousLocation;
-    public Vector3 mouseCurLocation;
-    Collider2D[] hitColliders;
-    Collider2D nearestCollider = null;
-
+    bool canAddBlock(float angle)
+    {
+        if(angle < 315 && angle > 225)
+        {
+            if (socketNorth && cubeNorth == null)
+            {
+                dirToNearestCollider = Direction.North;
+                return true;
+            }
+            return false;
+        }
+        else if (angle < 225 && angle > 135)
+        {
+            if (socketEast && cubeEast == null)
+            {
+                dirToNearestCollider = Direction.East;
+                return true;
+            }
+            return false;
+        }
+        else if (angle < 135 && angle > 45)
+        {
+            if (socketSouth && cubeSouth == null)
+            {
+                dirToNearestCollider = Direction.South;
+                return true;
+            }
+            return false;
+        }
+        else if (angle < 45 && angle > 0 || angle < 360 && angle > 315)
+        {
+            if (socketWest && cubeWest == null)
+            {
+                dirToNearestCollider = Direction.West;
+                return true;
+            }
+            return false;
+        }
+        return false;
+    }
     public virtual void OnMouseDown()
     {
         if (transform.parent != null && GetComponent<Rigidbody2D>() != null)
@@ -64,153 +122,160 @@ public class Cube : MonoBehaviour
             transform.gameObject.AddComponent<Rigidbody2D>();
             GetComponent<Rigidbody2D>().angularDrag = 1;
         }
-        //This grabs the position of the object in the world and turns it into the position on the screen
-        gameObjectSreenPoint = Camera.main.WorldToScreenPoint(gameObject.transform.position);
-        //Sets the mouse pointers vector3
-        mousePreviousLocation = new Vector2(Input.mousePosition.x, Input.mousePosition.y);
         offsetValue = transform.position - Camera.main.ScreenToWorldPoint(new Vector2(Input.mousePosition.x, Input.mousePosition.y));
-
+        GetComponent<Rigidbody2D>().isKinematic = true;
+        GetComponent<BoxCollider2D>().isTrigger = true;
+        GetComponent<Rigidbody2D>().freezeRotation = true;
+        GetComponent<Rigidbody2D>().freezeRotation = false;
     }
-
-    public Vector2 force;
-    public float topSpeed = 10;
     public virtual void OnMouseDrag()
     {
         if (!transform.parent)
         {
-            mouseCurLocation = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 0);
+            if (Input.GetKey(rotateShipRightKey))
+            {
+                transform.Rotate(new Vector3(0, 0, -5) * Time.deltaTime * 10, Space.World);
+            }
+            if (Input.GetKey(rotateShipLeftKey))
+            {
+                transform.Rotate(new Vector3(0, 0, 5) * Time.deltaTime * 10, Space.World);
+            }
+            if (Input.GetKeyDown(rotateKey))
+            {
+                if(!rotating)
+                {
+                    Quaternion targetRotation = transform.rotation;
+                    targetRotation *= Quaternion.AngleAxis(90, Vector3.forward);
+                    this.targetRotation = targetRotation;
+                    rotationTime = 0;
+                    rotating = true;
+                }
+            }
+            Vector3 mouseCurLocation = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 0);
             force = mouseCurLocation - mousePreviousLocation;//Changes the force to be applied
             mousePreviousLocation = mouseCurLocation;
 
             transform.position = new Vector2((Camera.main.ScreenToWorldPoint(mouseCurLocation) + offsetValue).x, (Camera.main.ScreenToWorldPoint(mouseCurLocation) + offsetValue).y);
             GetComponent<Rigidbody2D>().velocity = force;
-            hitColliders = Physics2D.OverlapCircleAll(transform.position, colliderRadius);
- 
-            nearestCollider = null;
-            if (hitColliders.Length != 1)
+            hitColliders = Physics2D.OverlapCircleAll(transform.position, colliderRadius, 1 << 8);
+            Debug.Log(hitColliders.Length);
+
+            if (hitColliders.Length > 1)
             {
                 float minSqrDistance = Mathf.Infinity;
 
+                bool addedCube = false;
                 for (int i = 0; i < hitColliders.Length; i++)
                 {
-                    if (hitColliders[i].name != name)
+                    GameObject cube = hitColliders[i].transform.parent.gameObject;
+                    if (cube.name != name)
                     {
-                        float sqrDistanceToCenter = (transform.position - hitColliders[i].transform.position).sqrMagnitude;
-                        if ((sqrDistanceToCenter < minSqrDistance) && (hitColliders[i].name == "Heart" || getHeartParent(hitColliders[i].GetComponent<Cube>())))
+                        float sqrDistanceToCenter = (transform.position - cube.transform.position).sqrMagnitude;
+                        if ((sqrDistanceToCenter < minSqrDistance) && (cube.name == "Heart" || getHeartParent(cube.GetComponent<Cube>())))
                         {
+                            addedCube = true;
                             minSqrDistance = sqrDistanceToCenter;
-                            nearestCollider = hitColliders[i];
+                            if(nearestCube == null)
+                            {
+                                nearestCube = cube;
+                                Vector3 eulerAngles = nearestCube.transform.localEulerAngles;
+                                List<float> angles = new List<float>();
+                                angles.Add(eulerAngles.z);
+                                for (int j = 0; j < 3; j++)
+                                {
+                                    eulerAngles.z = (eulerAngles.z + 90) % 360;
+                                    angles.Add(eulerAngles.z);
+                                }
+                                float closest = angles.Aggregate((x, y) => Math.Abs(x - transform.localEulerAngles.z) < Math.Abs(y - transform.localEulerAngles.z) ? x : y);
+                                transform.localEulerAngles = new Vector3(transform.localEulerAngles.x, transform.localEulerAngles.y, closest);
+                            } else
+                            {
+                                nearestCube = cube;
+                            }
                         }
                     }
                 }
-                if (nearestCollider)
+                if(!addedCube)
                 {
-                    Cube heartParent = getHeartParent(nearestCollider.GetComponent(typeof(Cube)) as Cube);
+                    nearestCube = null;
+                }
+                if (nearestCube)
+                {
+                    Cube heartParent = getHeartParent(nearestCube.GetComponent(typeof(Cube)) as Cube);
                     if (heartParent)
                     {
-                        this.heartParent = (Heart)heartParent;
-                        line.enabled = true;
-                        line.SetPosition(0, transform.position);
-                        line.SetPosition(1, nearestCollider.transform.position);
+                        Vector3 dir = transform.position - nearestCube.transform.position;
+                        dir = nearestCube.transform.InverseTransformDirection(dir);
+                        float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg + 180;
+                        if(canAddBlock(angle))
+                        {
+                            this.heartParent = (Heart)heartParent;
+                            line.enabled = true;
+                            line.SetPosition(0, transform.position);
+                            line.SetPosition(1, nearestCube.transform.position);
+                        }
                     }
                     else
                     {
-                        nearestCollider = null;
+                        nearestCube = null;
                         line.enabled = false;
                     }
                 }
                 else
                 {
-                    nearestCollider = null;
+                    nearestCube = null;
                     line.enabled = false;
                 }
             }
             else
             {
-                nearestCollider = null;
+                nearestCube = null;
                 line.enabled = false;
-            }
-
-            if (Input.GetKey(rotateKey))
-            {
-                transform.Rotate(0, 90, 0);
-                Debug.Log(transform.rotation);
             }
         }
     }
-
     private Cube getHeartParent(Cube nearestCube)
     {
         if (nearestCube.name == "Heart") return nearestCube;
         if (nearestCube.transform.parent) return getHeartParent(nearestCube.transform.parent.GetComponent<Cube>());
         return null;
     }
-
     public virtual void OnMouseUp()
     {
         if (!transform.parent)
         {
             line.enabled = false;
-            //Makes sure there isn't a ludicrous speed
+            GetComponent<Rigidbody2D>().isKinematic = false;
+            GetComponent<BoxCollider2D>().isTrigger = false;
             if (GetComponent<Rigidbody2D>().velocity.magnitude > topSpeed)
                 force = GetComponent<Rigidbody2D>().velocity.normalized * topSpeed;
 
-            // fix piece to the ship
-            if (nearestCollider && (nearestCollider.name == "Heart" || nearestCollider.transform.parent))
+            if (nearestCube && (nearestCube.name == "Heart" || nearestCube.transform.parent))
             {
-                Debug.Log(nearestCollider.transform.position);
-                transform.SetParent(nearestCollider.transform);
+                Debug.Log(nearestCube.transform.position);
+                transform.SetParent(nearestCube.transform);
                 Destroy(transform.GetComponent<Rigidbody2D>());
 
-                float xDiff = nearestCollider.transform.position.x - transform.position.x;
-                float yDiff = nearestCollider.transform.position.y - transform.position.y;
-                Debug.Log("x:" + xDiff + " y: " + yDiff + " " + (xDiff > yDiff));
-                
-                if (Math.Abs(xDiff) < Math.Abs(yDiff) && yDiff > 0)
+                if (dirToNearestCollider == Direction.North)
                 {
-                    Debug.Log(Mathf.Round(nearestCollider.transform.position.x));
-                    //if Down
-                    Debug.Log("Down");
-                    transform.position = new Vector3(
-                        nearestCollider.transform.position.x,
-                        nearestCollider.transform.position.y - nearestCollider.GetComponent<Cube>().length,
-                        nearestCollider.transform.position.z
-                    );
+                    transform.localPosition = new Vector3(0, nearestCube.GetComponent<Cube>().length, 0);
                 }
-                else if (Math.Abs(xDiff) > Math.Abs(yDiff) && xDiff > 0)
+                else if(dirToNearestCollider == Direction.South)
                 {
-                    //if Left
-                    Debug.Log("Left");
-                    transform.position = new Vector3(
-                        nearestCollider.transform.position.x - nearestCollider.GetComponent<Cube>().length,
-                        nearestCollider.transform.position.y,
-                        nearestCollider.transform.position.z
-                    );
+                    transform.localPosition = new Vector3(0, -1 * nearestCube.GetComponent<Cube>().length, 0);
                 }
-                else if (Math.Abs(xDiff) > Math.Abs(yDiff) && xDiff < 0)
+                else if (dirToNearestCollider == Direction.West)
                 {
-                    //if Right
-                    Debug.Log("Right");
-                    transform.position = new Vector3(
-                        nearestCollider.transform.position.x + nearestCollider.GetComponent<Cube>().length,
-                        nearestCollider.transform.position.y,
-                        nearestCollider.transform.position.z
-                    );
+                    transform.localPosition = new Vector3(-1 * nearestCube.GetComponent<Cube>().length, 0, 0);
                 }
-                else if (Math.Abs(xDiff) < Math.Abs(yDiff) && yDiff < 0)
+                else if (dirToNearestCollider == Direction.East)
                 {
-                    //if Up
-                    Debug.Log("Up");
-                    transform.position = new Vector3(
-                        nearestCollider.transform.position.x,
-                        nearestCollider.transform.position.y + nearestCollider.GetComponent<Cube>().length,
-                        nearestCollider.transform.position.z
-                    );
-                }
+                    transform.localPosition = new Vector3(nearestCube.GetComponent<Cube>().length, 0, 0);
+                } 
             }
-
+            dirToNearestCollider = null;
             hitColliders = null;
-            nearestCollider = null;
+            nearestCube = null;
         }
     }
 }
