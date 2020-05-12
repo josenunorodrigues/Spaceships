@@ -21,7 +21,6 @@ public class Cube : MonoBehaviour
     public float colliderRadius = 3f;
     public Cube cubeNorth, cubeEast, cubeSouth, cubeWest;
     public bool socketNorth = true, socketEast = true, socketSouth = true, socketWest = true;
-    public CircleCollider2D colliderNorth, colliderEast, colliderSouth, colliderWest;
     public Vector2 force;
     public float topSpeed = 10;
     public Direction? dirToNearestCollider;
@@ -30,6 +29,7 @@ public class Cube : MonoBehaviour
     public Vector3 mousePreviousLocation;
     Collider2D[] hitColliders;
     public GameObject nearestCube = null;
+    float placementOffset = 0.05f;
     // Start is called before the first frame update
 
     // Detecção de Blocos em redor
@@ -224,7 +224,6 @@ public class Cube : MonoBehaviour
             GetComponent<Rigidbody2D>().isKinematic = false;
             GetComponent<BoxCollider2D>().isTrigger = false;
 
-
             if (GetComponent<Rigidbody2D>().velocity.magnitude > topSpeed)
                 force = GetComponent<Rigidbody2D>().velocity.normalized * topSpeed;
 
@@ -240,41 +239,68 @@ public class Cube : MonoBehaviour
                     applyHeartRotation(cube);
                     heartParent = cube.heartParent;
                     transform.SetParent(nearestCube.transform);
-                    Destroy(transform.GetComponent<Rigidbody2D>());
+                    GetComponent<Rigidbody2D>().isKinematic = true;
+
                     if (dirToNearestCollider == Direction.North)
                     {
-                        transform.position = new Vector3(nearestCube.transform.position.x + Mathf.Cos(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad + Mathf.PI / 2), 
-                            nearestCube.transform.position.y + Mathf.Sin(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad + Mathf.PI / 2), 0);
+                        transform.position = new Vector3(
+                            nearestCube.transform.position.x + Mathf.Cos(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad + Mathf.PI / 2) * (1 + placementOffset), 
+                            nearestCube.transform.position.y + Mathf.Sin(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad + Mathf.PI / 2) * (1 + placementOffset), 
+                            0
+                        );
                         nearestCube.GetComponent<Cube>().cubeNorth = this;
                         cubeSouth = nearestCube.GetComponent<Cube>();
                     }
                     if (dirToNearestCollider == Direction.East)
                     {
-                        transform.position = new Vector3(nearestCube.transform.position.x + Mathf.Cos(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad), 
-                            nearestCube.transform.position.y + Mathf.Sin(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad), 0);
+                        transform.position = new Vector3(
+                            nearestCube.transform.position.x + Mathf.Cos(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad) * (1 + placementOffset), 
+                            nearestCube.transform.position.y + Mathf.Sin(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad) * (1 + placementOffset), 
+                            0
+                        );
                         nearestCube.GetComponent<Cube>().cubeEast = this;
                         cubeWest = nearestCube.GetComponent<Cube>();
                     }
                     if (dirToNearestCollider == Direction.South)
                     {
-                        transform.position = new Vector3(nearestCube.transform.position.x - Mathf.Cos(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad + Mathf.PI / 2), 
-                            nearestCube.transform.position.y - Mathf.Sin(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad + Mathf.PI / 2), 0);
+                        transform.position = new Vector3(
+                            nearestCube.transform.position.x - Mathf.Cos(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad + Mathf.PI / 2) * (1 + placementOffset), 
+                            nearestCube.transform.position.y - Mathf.Sin(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad + Mathf.PI / 2) * (1 + placementOffset),
+                            0
+                        );
                         nearestCube.GetComponent<Cube>().cubeSouth = this;
                         cubeNorth = nearestCube.GetComponent<Cube>();
                     }
                     if (dirToNearestCollider == Direction.West)
                     {
-                        transform.position = new Vector3(nearestCube.transform.position.x - Mathf.Cos(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad), 
-                            nearestCube.transform.position.y - Mathf.Sin(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad), 0);
+                        transform.position = new Vector3(
+                            nearestCube.transform.position.x - Mathf.Cos(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad) * (1 + placementOffset), 
+                            nearestCube.transform.position.y - Mathf.Sin(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad) * (1 + placementOffset), 
+                            0
+                        );
                         nearestCube.GetComponent<Cube>().cubeWest = this;
                         cubeEast = nearestCube.GetComponent<Cube>();
                     }
+                    updateNearCubes();
                 }
             }
+
             dirToNearestCollider = null;
             hitColliders = null;
             nearestCube = null;
         }
+    }
+    private void updateNearCubes()
+    {
+        Vector3 northPosition = new Vector3(transform.position.x + Mathf.Cos(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad + Mathf.PI / 2), transform.position.y + Mathf.Sin(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad + Mathf.PI / 2), 0);
+        Collider2D[] northColliders = Physics2D.OverlapCircleAll(northPosition, length/4, 1 << 8);
+        Vector3 eastPosition = new Vector3(transform.position.x + Mathf.Cos(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad), transform.position.y + Mathf.Sin(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad), 0);
+        Collider2D[] eastColliders = Physics2D.OverlapCircleAll(eastPosition, length / 4, 1 << 8);
+        Vector3 southPosition = new Vector3(transform.position.x - Mathf.Cos(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad + Mathf.PI / 2), transform.position.y - Mathf.Sin(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad + Mathf.PI / 2), 0);
+        Collider2D[] southColliders = Physics2D.OverlapCircleAll(southPosition, length / 4, 1 << 8);
+        Vector3 westPosition = new Vector3(transform.position.x - Mathf.Cos(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad), transform.position.y - Mathf.Sin(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad), 0);
+        Collider2D[] westColliders = Physics2D.OverlapCircleAll(westPosition, length / 4, 1 << 8);
+
     }
     private Cube getHeartParent(Cube nearestCube)
     {
