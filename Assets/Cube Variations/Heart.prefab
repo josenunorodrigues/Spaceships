@@ -103,7 +103,7 @@ MonoBehaviour:
   tier: 1
   health: 20
   length: 1
-  heartParent: {fileID: 0}
+  heartParent: {fileID: 149323132596802281}
   colliderRadius: 3
   colliderNorth: {fileID: 0}
   colliderEast: {fileID: 0}
@@ -112,7 +112,7 @@ MonoBehaviour:
   force: {x: 0, y: 0}
   topSpeed: 10
   mousePreviousLocation: {x: 0, y: 0, z: 0}
-  rotationSpeed: 3
+  nearestCube: {fileID: 0}
   rotationTime: 0
   rb: {fileID: 3805106372292821375}
 --- !u!61 &8602509702767455885

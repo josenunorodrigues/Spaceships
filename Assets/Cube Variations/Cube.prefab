@@ -181,13 +181,22 @@ MonoBehaviour:
   rotateShipLeftKey: 97
   rotateShipRightKey: 100
   accelerateKey: 119
-  rotateKey: 114
+  rotateCubeLeftKey: 113
+  rotateCubeRightKey: 101
   speed: 1.5
   tier: 1
   health: 20
   length: 1
   heartParent: {fileID: 0}
   colliderRadius: 3
+  cubeNorth: {fileID: 0}
+  cubeEast: {fileID: 0}
+  cubeSouth: {fileID: 0}
+  cubeWest: {fileID: 0}
+  socketNorth: 1
+  socketEast: 1
+  socketSouth: 1
+  socketWest: 1
   colliderNorth: {fileID: 8619738858676444967}
   colliderEast: {fileID: 5367354386963604205}
   colliderSouth: {fileID: 4298682232473911511}
@@ -196,7 +205,6 @@ MonoBehaviour:
   topSpeed: 10
   mousePreviousLocation: {x: 0, y: 0, z: 0}
   nearestCube: {fileID: 0}
-  rotationTime: 0
 --- !u!120 &2527557556344701729
 LineRenderer:
   m_ObjectHideFlags: 0
