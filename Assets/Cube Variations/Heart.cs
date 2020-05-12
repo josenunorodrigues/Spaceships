@@ -12,6 +12,7 @@ public class Heart : Cube
     void Start()
     {
         heartParent = this;
+        pathToHeart = 0;
     }
 
     void Update()

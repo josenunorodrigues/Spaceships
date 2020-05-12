@@ -11,6 +11,7 @@ public class Cube : MonoBehaviour
     public KeyCode accelerateKey = KeyCode.W;
     public KeyCode rotateCubeLeftKey = KeyCode.Q;
     public KeyCode rotateCubeRightKey = KeyCode.E;
+    public int pathToHeart = 0;
     public float speed = 1.5f;
     public int tier = 1;
     public int health = 20;
@@ -99,9 +100,9 @@ public class Cube : MonoBehaviour
         if (transform.parent != null && GetComponent<Rigidbody2D>() != null)
         {
             transform.SetParent(null);
-            transform.gameObject.AddComponent<Rigidbody2D>();
-            GetComponent<Rigidbody2D>().angularDrag = 1;
-        }
+            GetComponent<Rigidbody2D>().isKinematic = false;
+            cubeNorth = null; cubeEast = null; cubeSouth = null; cubeWest = null;
+}
         offsetValue = transform.position - Camera.main.ScreenToWorldPoint(new Vector2(Input.mousePosition.x, Input.mousePosition.y));
         GetComponent<Rigidbody2D>().isKinematic = true;
         GetComponent<BoxCollider2D>().isTrigger = true;
@@ -135,7 +136,6 @@ public class Cube : MonoBehaviour
             Vector3 mouseCurLocation = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 0);
             force = mouseCurLocation - mousePreviousLocation;//Changes the force to be applied
             mousePreviousLocation = mouseCurLocation;
-            bool canAdd = false;
             transform.position = new Vector2((Camera.main.ScreenToWorldPoint(mouseCurLocation) + offsetValue).x, (Camera.main.ScreenToWorldPoint(mouseCurLocation) + offsetValue).y);
             GetComponent<Rigidbody2D>().velocity = force;
             hitColliders = Physics2D.OverlapCircleAll(transform.position, colliderRadius, 1 << 8);
@@ -160,38 +160,23 @@ public class Cube : MonoBehaviour
                 }
                 if (cycleNearestCube)
                 {
-                    bool addedDifferentCube = false;
                     if (nearestCube == null)
                     {
-                        addedDifferentCube = true;
                         nearestCube = cycleNearestCube;
                         applyHeartRotation(nearestCube.GetComponent(typeof(Cube)) as Cube);
                     }
                     else if (nearestCube.name != cycleNearestCube.name)
                     {
-                        addedDifferentCube = true;
                         nearestCube = cycleNearestCube;
-                    }
-                    if (addedDifferentCube)
-                    {
-                        Gradient gradient = new Gradient();
-                        GradientColorKey[] colorKey = new GradientColorKey[2];
-                        colorKey[0].color = GetComponent<Renderer>().material.GetColor("_Color");
-                        colorKey[0].time = 0.0f;
-                        colorKey[1].color = nearestCube.GetComponent<Renderer>().material.GetColor("_Color");
-                        colorKey[1].time = 1.0f;
-                        GradientAlphaKey[] alphaKey = new GradientAlphaKey[2];
-                        alphaKey[0].alpha = 1.0f;
-                        alphaKey[0].time = 0.0f;
-                        alphaKey[1].alpha = 0.3f;
-                        alphaKey[1].time = 1.0f;
-                        gradient.SetKeys(colorKey, alphaKey);
-                        line.colorGradient = gradient;
                     }
                 }
                 else nearestCube = null;
+
                 if (nearestCube)
                 {
+                    line.enabled = true;
+                    line.SetPosition(0, transform.position);
+                    line.SetPosition(1, nearestCube.transform.position);
                     Cube heartParent = getHeartParent(nearestCube.GetComponent(typeof(Cube)) as Cube);
                     if (heartParent)
                     {
@@ -201,15 +186,45 @@ public class Cube : MonoBehaviour
                         float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg + 180;
                         if (canAddBlock(angle, nearestCube.GetComponent(typeof(Cube)) as Cube))
                         {
-                            canAdd = true;
-                            line.enabled = true;
-                            line.SetPosition(0, transform.position);
-                            line.SetPosition(1, nearestCube.transform.position);
+                            Gradient gradient = new Gradient();
+                            GradientColorKey[] colorKey = new GradientColorKey[2];
+                            colorKey[0].color = GetComponent<Renderer>().material.GetColor("_Color");
+                            colorKey[0].time = 0.0f;
+                            colorKey[1].color = nearestCube.GetComponent<Renderer>().material.GetColor("_Color");
+                            colorKey[1].time = 1.0f;
+                            GradientAlphaKey[] alphaKey = new GradientAlphaKey[2];
+                            alphaKey[0].alpha = 1.0f;
+                            alphaKey[0].time = 0.0f;
+                            alphaKey[1].alpha = 0.3f;
+                            alphaKey[1].time = 1.0f;
+                            gradient.SetKeys(colorKey, alphaKey);
+                            line.colorGradient = gradient;
+                        }
+                        else
+                        {
+                            Gradient gradient = new Gradient();
+                            GradientColorKey[] colorKey = new GradientColorKey[2];
+                            colorKey[0].color = Color.red;
+                            colorKey[0].time = 0.0f;
+                            colorKey[1].color = Color.red;
+                            colorKey[1].time = 1.0f;
+                            GradientAlphaKey[] alphaKey = new GradientAlphaKey[2];
+                            alphaKey[0].alpha = 1.0f;
+                            alphaKey[0].time = 0.0f;
+                            alphaKey[1].alpha = 0.3f;
+                            alphaKey[1].time = 1.0f;
+                            gradient.SetKeys(colorKey, alphaKey);
+                            line.colorGradient = gradient;
                         }
                     }
                 }
+                else
+                {
+                    nearestCube = null;
+                    line.enabled = false;
+                }
             }
-            if(!canAdd)
+            else
             {
                 nearestCube = null;
                 line.enabled = false;
@@ -238,7 +253,7 @@ public class Cube : MonoBehaviour
                     cube = nearestCube.GetComponent(typeof(Cube)) as Cube;
                     applyHeartRotation(cube);
                     heartParent = cube.heartParent;
-                    transform.SetParent(nearestCube.transform);
+                    transform.SetParent(heartParent.transform);
                     GetComponent<Rigidbody2D>().isKinematic = true;
 
                     if (dirToNearestCollider == Direction.North)
@@ -300,6 +315,31 @@ public class Cube : MonoBehaviour
         Collider2D[] southColliders = Physics2D.OverlapCircleAll(southPosition, length / 4, 1 << 8);
         Vector3 westPosition = new Vector3(transform.position.x - Mathf.Cos(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad), transform.position.y - Mathf.Sin(heartParent.transform.eulerAngles.z * Mathf.Deg2Rad), 0);
         Collider2D[] westColliders = Physics2D.OverlapCircleAll(westPosition, length / 4, 1 << 8);
+        int? lowestPathToHeart = null;
+        //if(northColliders.Length == 1)
+        //{
+        //    Cube cube = northColliders[1].transform.parent.GetComponent(typeof(Cube)) as Cube;
+        //    cubeNorth = cube;
+        //    if (lowestPathToHeart == null || cube.pathToHeart < lowestPathToHeart) lowestPathToHeart = cube.pathToHeart;
+        //}
+        //if (eastColliders.Length == 1)
+        //{
+        //    Cube cube = eastColliders[1].transform.parent.GetComponent(typeof(Cube)) as Cube;
+        //    cubeEast = cube;
+        //    if (lowestPathToHeart == null || cube.pathToHeart < lowestPathToHeart) lowestPathToHeart = cube.pathToHeart;
+        //}
+        //if (southColliders.Length == 1)
+        //{
+        //    Cube cube = southColliders[1].transform.parent.GetComponent(typeof(Cube)) as Cube;
+        //    cubeSouth = cube;
+        //    if (lowestPathToHeart == null || cube.pathToHeart < lowestPathToHeart) lowestPathToHeart = cube.pathToHeart;
+        //}
+        //if (westColliders.Length == 1)
+        //{
+        //    Cube cube = westColliders[1].transform.parent.GetComponent(typeof(Cube)) as Cube;
+        //    cubeWest = cube;
+        //    if (lowestPathToHeart == null || cube.pathToHeart < lowestPathToHeart) lowestPathToHeart = cube.pathToHeart;
+        //}
 
     }
     private Cube getHeartParent(Cube nearestCube)
